@@ -118,7 +118,7 @@ ENV ACORE_COMPONENT=undefined
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libmysqlclient21 libreadline8 \
-      gettext-base default-mysql-client && \
+      gettext-base default-mysql-client screen && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
