@@ -1,0 +1,12 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Values.images.ac_db_import.name }}-job"
+  namespace: {{ .Values.app.name }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: {{ .Values.images.ac_db_import.name }}
+        image: {{ .Values.images.ac_db_import.image }}
+      restartPolicy: OnFailure

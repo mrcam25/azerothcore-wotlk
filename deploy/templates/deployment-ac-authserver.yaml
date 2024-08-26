@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.images.ac_authserver.name }}
+  namespace: {{ .Values.app.name }}
+  labels:
+    buildDate: {{ now | date "2006-01-02T15.04.05" }}
+    containerName: {{ .Values.images.ac_authserver.name }}
+spec:
+  selector:
+    matchLabels: 
+      app: {{ .Values.images.ac_authserver.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.images.ac_authserver.name }}
+    spec:
+      containers:
+        - name: {{ .Values.images.ac_authserver.name }}
+          image: {{ .Values.images.ac_authserver.image }}
+          command: ["/bin/bash", "-c", "/azerothcore/entrypoint.sh authserver && tail -f ./env/dist/logs/Auth.log"]
+          imagePullPolicy: {{ .Values.images.ac_authserver.pullPolicy }}
+          ports:
+          - containerPort: 3724
+            name: auth-external
+          envFrom:
+          - configMapRef:
+              name: "{{ .Values.images.ac_authserver.name }}-cm"
+          volumeMounts:
+          - name: ac-client-data-volume
+            mountPath: /azerothcore/env/dist/data
+            readOnly: false
+      volumes:
+      - name: ac-client-data-volume
+        persistentVolumeClaim:
+          claimName: ac-client-data-pvc
+      securityContexts:
+        fsGroup: 1000
+        runAsUser: acore
+        runAsGroup: 1000
