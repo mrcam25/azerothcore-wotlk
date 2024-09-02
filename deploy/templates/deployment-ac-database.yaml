@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.images.ac_database.name }}
+  namespace: {{ .Values.app.name }}
+  labels:
+    buildDate: {{ now | date "2006-01-02T15.04.05" }}
+    containerName: {{ .Values.images.ac_database.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app: {{ .Values.images.ac_database.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.images.ac_database.name }}
+    spec:
+      initContainers:
+        - name: {{ .Values.images.ac_client_data_init.name }}
+          image: {{ .Values.images.ac_client_data_init.image }}
+          volumeMounts:
+          - name: ac-client-data-volume
+            mountPath: /azerothcore/env/dist/data
+      containers:
+        - name: {{ .Values.images.ac_database.name }}
+          image: {{ .Values.images.ac_database.image }}
+          imagePullPolicy: {{ .Values.images.ac_database.pullPolicy }}
+          lifecycle:
+            postStart:
+              exec:
+                command: ["sh", "-c", "adduser -u 1000 -U acore && chown -R acore:acore /azerothcore"]
+          ports:
+            - containerPort: {{ .Values.images.ac_database.port }}
+          livenessProbe:
+            exec:
+              command: 
+              - mysqladmin
+              - ping
+              - -h127.0.0.1
+              - -uroot
+              - -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 2
+            periodSeconds: {{ .Values.ac_database.healthcheck.interval }}
+            timeoutSeconds: {{ .Values.ac_database.healthcheck.timeout }}
+            failureThreshold: {{ .Values.ac_database.healthcheck.retries.liveness }}
+          readinessProbe:
+            exec:
+              command: 
+              - mysqladmin
+              - ping
+              - -h127.0.0.1
+              - -uroot
+              - -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 2
+            periodSeconds: {{ .Values.ac_database.healthcheck.interval }}
+            timeoutSeconds: {{ .Values.ac_database.healthcheck.timeout }}
+            failureThreshold: {{ .Values.ac_database.healthcheck.retries.readiness }}
+          envFrom:
+          - secretRef:
+              name: "{{ .Values.images.ac_database.name }}-secret"
+          volumeMounts:
+          - name: ac-database-volume
+            mountPath: /var/lib/mysql
+            readOnly: false
+          - name: ac-client-data-volume
+            mountPath: /azerothcore/env/dist/data
+            readOnly: false
+      volumes:
+      - name: ac-database-volume
+        persistentVolumeClaim:
+          claimName: ac-database-pvc
+      - name: ac-client-data-volume
+        persistentVolumeClaim:
+          claimName: ac-client-data-pvc
+      securityContexts:
+        fsGroup: 1000
+        runAsUser: acore
+        runAsGroup: 1000

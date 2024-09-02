@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.images.ac_worldserver.name }}-cm"
+  namespace: {{ .Values.app.name }}
+  labels:
+    buildDate: {{ now | date "2006-01-02T15.04.05" }}
+    app: {{ .Values.app.name }}
+data:
+  env.ac: |
+    #
+    # GENERAL
+    #
+
+    USER_CONF_PATH=/azerothcore/apps/docker/config-docker.sh
+    DATAPATH=/azerothcore/env/dist/data
+
+    #
+    # COMPILER
+    #
+
+    CTYPE=RelWithDebInfo
+    CSCRIPTS=static
+    AC_CCACHE=true
+
+    #
+    # SIMPLE RESTARTER
+    #
+    AC_RESTARTER_BINPATH=
+    AC_RESTARTER_BINFILE=
+    AC_RESTARTER_WITHGDB=
+
+  {{- with .Values.ac_worldserver.environment }}
+  AC_DATA_DIR: {{ .AC_DATA_DIR }}
+  AC_LOGS_DIR: {{ .AC_LOGS_DIR }}
+  AC_LOGIN_DATABASE_INFO: {{ .AC_LOGIN_DATABASE_INFO }}
+  AC_WORLD_DATABASE_INFO: {{ .AC_WORLD_DATABASE_INFO }}
+  AC_CHARACTER_DATABASE_INFO: {{ .AC_CHARACTER_DATABASE_INFO }}
+  {{- end }}
+  DOCKER_AC_ENV_FILE: "conf/dist/env.ac"
+  ACORE_COMPONENT: "worldserver"

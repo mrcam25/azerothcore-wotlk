@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Values.images.ac_database.name }}-service"
+  namespace: {{ .Values.app.name }}
+  labels:
+    buildDate: {{ now | date "2006-01-02T15.04.05" }}
+    name: {{ .Values.images.ac_database.name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.images.ac_database.port }}
+      targetPort: {{ .Values.images.ac_database.port }}
+  selector:
+    app: {{ .Values.images.ac_database.name }}

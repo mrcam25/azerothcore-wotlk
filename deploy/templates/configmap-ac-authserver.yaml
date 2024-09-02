@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.images.ac_authserver.name }}-cm"
+  namespace: {{ .Values.app.name }}
+  labels:
+    buildDate: {{ now | date "2006-01-02T15.04.05" }}
+    app: {{ .Values.app.name }}
+data:
+  {{- with .Values.ac_authserver.environment }}
+  AC_LOGS_DIR: {{ .AC_LOGS_DIR }}
+  AC_TEMP_DIR: {{ .AC_TEMP_DIR }}
+  AC_LOGIN_DATABASE_INFO: {{ .AC_LOGIN_DATABASE_INFO }}
+  {{- end }}
+  DOCKER_AC_ENV_FILE: "conf/dist/env.ac"
+  ACORE_COMPONENT: "authserver"
