@@ -34,6 +34,7 @@
 #include "Language.h"
 #include "MapMgr.h"
 #include "MiscPackets.h"
+#include "MMapFactory.h"
 #include "MovementGenerator.h"
 #include "ObjectAccessor.h"
 #include "Pet.h"
@@ -157,9 +158,6 @@ public:
 
         if (args.empty() || !tokens.size())
         {
-            handler->PSendSysMessage("Usage: .skirmish [arena] [XvX] [Nick1] [Nick2] ... [NickN]");
-            handler->PSendSysMessage("[arena] can be \"all\" or comma-separated list of possible arenas (NA, BE, RL, DS, RV).");
-            handler->PSendSysMessage("[XvX] can be 1v1, 2v2, 3v3, 5v5. After [XvX] specify enough nicknames for that mode.");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -1160,19 +1158,15 @@ public:
     static bool HandleReviveCommand(ChatHandler* handler, Optional<PlayerIdentifier> target)
     {
         if (!target)
-        {
             target = PlayerIdentifier::FromTargetOrSelf(handler);
-        }
 
         if (!target)
-        {
             return false;
-        }
 
         if (target->IsConnected())
         {
             auto targetPlayer = target->GetConnectedPlayer();
-
+            targetPlayer->RemoveAurasDueToSpell(27827); // Spirit of Redemption
             targetPlayer->ResurrectPlayer(!AccountMgr::IsPlayerAccount(targetPlayer->GetSession()->GetSecurity()) ? 1.0f : 0.5f);
             targetPlayer->SpawnCorpseBones();
             targetPlayer->SaveToDB(false, false);
