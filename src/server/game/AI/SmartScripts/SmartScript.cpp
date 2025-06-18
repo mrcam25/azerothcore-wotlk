@@ -742,13 +742,16 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
                     if (e.action.cast.castFlags & SMARTCAST_COMBAT_MOVE)
                     {
-                        // If cast flag SMARTCAST_COMBAT_MOVE is set combat movement will not be allowed unless target is outside spell range, out of mana, or LOS.
-                        if (result == SPELL_FAILED_OUT_OF_RANGE)
-                            // if we are just out of range, we only chase until we are back in spell range.
-                            CAST_AI(SmartAI, me->AI())->SetCombatMove(true, std::max(spellMaxRange - NOMINAL_MELEE_RANGE, 0.0f));
-                        else
-                            // if spell fail for any other reason, we chase to melee range, or stay where we are if spellcast was successful.
-                            CAST_AI(SmartAI, me->AI())->SetCombatMove(spellCastFailed);
+                        if (!me->isMoving()) // Don't try to reposition while we are moving
+                        {
+                            // If cast flag SMARTCAST_COMBAT_MOVE is set combat movement will not be allowed unless target is outside spell range, out of mana, or LOS.
+                            if (result == SPELL_FAILED_OUT_OF_RANGE)
+                                // if we are just out of range, we only chase until we are back in spell range.
+                                CAST_AI(SmartAI, me->AI())->SetCombatMove(true, std::max(spellMaxRange - NOMINAL_MELEE_RANGE, 0.0f));
+                            else
+                                // if spell fail for any other reason, we chase to melee range, or stay where we are if spellcast was successful.
+                                CAST_AI(SmartAI, me->AI())->SetCombatMove(spellCastFailed);
+                        }
                     }
 
                     if (spellCastFailed)
@@ -2696,7 +2699,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         }
         case SMART_ACTION_PLAYER_TALK:
         {
-            char const* text = sObjectMgr->GetAcoreString(e.action.playerTalk.textId, DEFAULT_LOCALE);
+            std::string text = sObjectMgr->GetAcoreString(e.action.playerTalk.textId, DEFAULT_LOCALE);
 
             if (!targets.empty())
                 for (WorldObject* target : targets)
@@ -3282,6 +3285,16 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             sWorldState->HandleExternalEvent(static_cast<WorldStateEvent>(e.action.worldStateScript.eventId), e.action.worldStateScript.param);
             break;
         }
+        case SMART_ACTION_DISABLE_REWARD:
+        {
+            for (WorldObject* target : targets)
+                if (IsCreature(target))
+                {
+                    target->ToCreature()->SetReputationRewardDisabled(static_cast<bool>(e.action.reward.reputation));
+                    target->ToCreature()->SetLootRewardDisabled(static_cast<bool>(e.action.reward.loot));
+                }
+            break;
+        }
         default:
             LOG_ERROR("sql.sql", "SmartScript::ProcessAction: Entry {} SourceType {}, Event {}, Unhandled Action type {}", e.entryOrGuid, e.GetScriptType(), e.event_id, e.GetActionType());
             break;
@@ -3290,10 +3303,16 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
     if (e.link && e.link != e.event_id)
     {
         auto linked = FindLinkedEvent(e.link);
-        if (linked.has_value() && linked.value().get().GetEventType() == SMART_EVENT_LINK)
-            executionStack.emplace_back(SmartScriptFrame{ linked.value(), unit, var0, var1, bvar, spell, gob });
+        if (linked.has_value())
+        {
+            auto& linkedEvent = linked.value().get();
+            if (linkedEvent.GetEventType() == SMART_EVENT_LINK)
+                executionStack.emplace_back(SmartScriptFrame{ linkedEvent, unit, var0, var1, bvar, spell, gob });
+            else
+                LOG_ERROR("sql.sql", "SmartScript::ProcessAction: Entry {} SourceType {}, Event {}, Link Event {} found but has wrong type (should be 61, is {}).", e.entryOrGuid, e.GetScriptType(), e.event_id, e.link, linkedEvent.GetEventType());
+        }
         else
-            LOG_ERROR("sql.sql", "SmartScript::ProcessAction: Entry {} SourceType {}, Event {}, Link Event {} not found or invalid, skipped.", e.entryOrGuid, e.GetScriptType(), e.event_id, e.link);
+            LOG_ERROR("sql.sql", "SmartScript::ProcessAction: Entry {} SourceType {}, Event {}, Link Event {} not found, skipped.", e.entryOrGuid, e.GetScriptType(), e.event_id, e.link);
     }
 }
 
@@ -3450,10 +3469,10 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
             {
                 if (e.target.hostileRandom.powerType)
                 {
-                    if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::MaxThreat, 1, PowerUsersSelector(me, Powers(e.target.hostileRandom.powerType - 1), (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly)))
+                    if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::MaxThreat, 0, PowerUsersSelector(me, Powers(e.target.hostileRandom.powerType - 1), (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, false)))
                         targets.push_back(u);
                 }
-                else if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::MaxThreat, 1, (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, true, -e.target.hostileRandom.aura))
+                else if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::MaxThreat, 0, (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, false, -e.target.hostileRandom.aura))
                     targets.push_back(u);
             }
             break;
@@ -3486,10 +3505,10 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
             {
                 if (e.target.hostileRandom.powerType)
                 {
-                    if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::Random, 1, PowerUsersSelector(me, Powers(e.target.hostileRandom.powerType - 1), (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly)))
+                    if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::Random, 0, PowerUsersSelector(me, Powers(e.target.hostileRandom.powerType - 1), (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, false)))
                         targets.push_back(u);
                 }
-                else if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::Random, 1, (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, true, -e.target.hostileRandom.aura))
+                else if (Unit* u = me->AI()->SelectTarget(SelectTargetMethod::Random, 0, (float)e.target.hostileRandom.maxDist, e.target.hostileRandom.playerOnly, false, -e.target.hostileRandom.aura))
                     targets.push_back(u);
             }
             break;

@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AreaDefines.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
 #include "Battleground.h"
@@ -539,9 +540,9 @@ class spell_gen_rallying_cry_of_the_dragonslayer : public SpellScript
     {
         targets.clear();
 
-        uint32 zoneId = 1519;
-        if (GetCaster()->GetMapId() == 1) // Kalimdor
-            zoneId = 1637;
+        uint32 zoneId = AREA_STORMWIND_CITY;
+        if (GetCaster()->GetMapId() == MAP_KALIMDOR)
+            zoneId = AREA_ORGRIMMAR;
 
         Map::PlayerList const& pList = GetCaster()->GetMap()->GetPlayers();
         for (Map::PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
@@ -605,7 +606,6 @@ class spell_gen_black_magic_enchant : public AuraScript
     }
 };
 
-// 53642 - The Might of Mograine
 // 64174 - Protective Gaze
 class spell_gen_area_aura_select_players : public AuraScript
 {
@@ -621,6 +621,7 @@ class spell_gen_area_aura_select_players : public AuraScript
     }
 };
 
+// 53642 - The Might of Mograine
 // 62650 - Fortitude of Frost
 // 62670 - Resilience of Nature
 // 62671 - Speed of Invention
@@ -1901,8 +1902,6 @@ class spell_gen_feign_death_no_prevent_emotes : public AuraScript
 
 enum Teleporting
 {
-    AREA_VIOLET_CITADEL_SPIRE   = 4637,
-
     SPELL_TELEPORT_SPIRE_DOWN   = 59316,
     SPELL_TELEPORT_SPIRE_UP     = 59314
 };
@@ -1923,7 +1922,7 @@ class spell_gen_teleporting : public SpellScript
             return;
 
         // return from top
-        if (target->ToPlayer()->GetAreaId() == AREA_VIOLET_CITADEL_SPIRE)
+        if (target->ToPlayer()->GetAreaId() == AREA_VARGOTHS_RETREAT)
             target->CastSpell(target, SPELL_TELEPORT_SPIRE_DOWN, true);
             // teleport atop
         else
@@ -4051,7 +4050,7 @@ public:
             // Triggered spell id dependent on riding skill and zone
             bool canFly = false;
             uint32 map = GetVirtualMapForMapAndZone(target->GetMapId(), target->GetZoneId());
-            if (map == 530 || (map == 571 && target->HasSpell(SPELL_COLD_WEATHER_FLYING)))
+            if (map == MAP_OUTLAND || (map == MAP_NORTHREND && target->HasSpell(SPELL_COLD_WEATHER_FLYING)))
                 canFly = true;
 
             AreaTableEntry const* area = sAreaTableStore.LookupEntry(target->GetAreaId());
@@ -5400,6 +5399,38 @@ class spell_gen_proc_on_victim : public AuraScript
     }
 };
 
+enum TranslocateSpells
+{
+    SPELL_TRANSLOCATION_DOWN = 45368,
+    SPELL_TRANSLOCATION_UP   = 45371
+};
+
+class spell_gen_translocate : public SpellScript
+{
+    PrepareSpellScript(spell_gen_translocate);
+
+public:
+    spell_gen_translocate(uint32 spellId) : SpellScript(), _spellId(spellId) {}
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ _spellId });
+    }
+
+    void HandleScript()
+    {
+        GetCaster()->CastSpell(GetCaster(), _spellId);
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_gen_translocate::HandleScript);
+    }
+
+private:
+    uint32 _spellId;
+};
+
 void AddSC_generic_spell_scripts()
 {
     RegisterSpellScript(spell_silithyst);
@@ -5560,4 +5591,6 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_set_health);
     RegisterSpellScript(spell_pet_spellhit_expertise_spellpen_scaling);
     RegisterSpellScript(spell_gen_proc_on_victim);
+    RegisterSpellScriptWithArgs(spell_gen_translocate, "spell_gen_translocate_down", SPELL_TRANSLOCATION_DOWN);
+    RegisterSpellScriptWithArgs(spell_gen_translocate, "spell_gen_translocate_up", SPELL_TRANSLOCATION_UP);
 }
