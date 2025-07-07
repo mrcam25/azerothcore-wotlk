@@ -27,10 +27,7 @@ jobs:
         run: |
           git checkout master
           git fetch upstream
-          git merge upstream/master --allow-unrelated-histories --no-commit || true
-          git checkout --theirs .
-          git add .
-          git commit -m "Merge upstream (favor theirs)"
+          git merge upstream/master --ff-only
 
       - name: Push to origin
         run: git push origin master
