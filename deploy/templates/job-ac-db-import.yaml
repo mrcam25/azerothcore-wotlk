@@ -2,11 +2,28 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: "{{ .Values.images.ac_db_import.name }}-job"
-  namespace: {{ .Values.app.name }}
 spec:
   template:
     spec:
       containers:
       - name: {{ .Values.images.ac_db_import.name }}
-        image: {{ .Values.images.ac_db_import.image }}
+        image: {{ .Values.images.ac_db_import.image }}:{{ .Values.images.ac_db_import.tag }}
+        env:
+          - name: AC_DATA_DIR
+            value: {{ .Values.ac_db_import.environment.AC_DATA_DIR | quote }}
+          - name: AC_LOGS_DIR
+            value: {{ .Values.ac_db_import.environment.AC_LOGS_DIR | quote }}
+          - name: AC_LOGIN_DATABASE_INFO
+            value: {{ .Values.ac_db_import.environment.AC_LOGIN_DATABASE_INFO | quote }}
+          - name: AC_WORLD_DATABASE_INFO
+            value: {{ .Values.ac_db_import.environment.AC_WORLD_DATABASE_INFO | quote }}
+          - name: AC_CHARACTER_DATABASE_INFO
+            value: {{ .Values.ac_db_import.environment.AC_CHARACTER_DATABASE_INFO | quote }}
+        volumeMounts:
+          - name: ac-client-data-volume
+            mountPath: /azerothcore/env/dist/data
       restartPolicy: OnFailure
+      volumes:
+        - name: ac-client-data-volume
+          persistentVolumeClaim:
+            claimName: ac-client-data-pvc

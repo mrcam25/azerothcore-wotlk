@@ -2,10 +2,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: "{{ .Values.images.ac_database.name }}-pvc"
-  namespace: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+    component: database
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
+      storage: {{ .Values.ac_database.pvc.storage }}

@@ -2,13 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.images.ac_authserver.name }}
-  namespace: {{ .Values.app.name }}
   labels:
     buildDate: {{ now | date "2006-01-02T15.04.05" }}
     containerName: {{ .Values.images.ac_authserver.name }}
 spec:
+  replicas: 1
   selector:
-    matchLabels: 
+    matchLabels:
       app: {{ .Values.images.ac_authserver.name }}
   template:
     metadata:
@@ -17,24 +17,39 @@ spec:
     spec:
       containers:
         - name: {{ .Values.images.ac_authserver.name }}
-          image: {{ .Values.images.ac_authserver.image }}
-          command: ["/bin/bash", "-c", "/azerothcore/entrypoint.sh authserver && tail -f ./env/dist/logs/Auth.log"]
+          image: {{ .Values.images.ac_authserver.image }}:{{ .Values.images.ac_authserver.tag }}
+          command: ["/azerothcore/entrypoint.sh", "authserver"]
           imagePullPolicy: {{ .Values.images.ac_authserver.pullPolicy }}
           ports:
-          - containerPort: 3724
-            name: auth-external
+            - containerPort: 3724
+              name: auth-external
           envFrom:
-          - configMapRef:
-              name: "{{ .Values.images.ac_authserver.name }}-cm"
+            - configMapRef:
+                name: "{{ .Values.images.ac_authserver.name }}-cm"
           volumeMounts:
-          - name: ac-client-data-volume
-            mountPath: /azerothcore/env/dist/data
-            readOnly: false
+            - name: ac-client-data-volume
+              mountPath: /azerothcore/env/dist/data
+              readOnly: false
+            - name: env
+              mountPath: /conf/dist/env.ac
+              subPath: env.ac
+            - name: ac-authserver-conf
+              mountPath: /azerothcore/env/dist/etc/authserver.conf
+              subPath: authserver.conf
       volumes:
-      - name: ac-client-data-volume
-        persistentVolumeClaim:
-          claimName: ac-client-data-pvc
-      securityContexts:
+        - name: ac-client-data-volume
+          persistentVolumeClaim:
+            claimName: ac-client-data-pvc
+        - name: env
+          configMap:
+            name: "{{ .Values.images.ac_authserver.name }}-cm"
+        - name: ac-authserver-conf
+          configMap:
+            name: ac-authserver-conf
+            items:
+              - key: authserver.conf
+                path: authserver.conf
+      securityContext:
         fsGroup: 1000
-        runAsUser: acore
+        runAsUser: 1000
         runAsGroup: 1000
