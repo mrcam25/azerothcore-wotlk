@@ -16,12 +16,14 @@ It's not a finished project by any stretch but it is *a* project now. Happy for 
 
 Quick overview: it's using a Helm Chart and Templates to pull Docker images down and build up kubernetes pods inside a cluster.
 
-1. Run `Docker Compose Build`
+1. Run `docker compose build`
 2. Run ```helm upgrade azerothcore-wotlk . --install --debug --create-namespace -nazerothcore-wotlk```
-3. Run `create_mysql.sql`
-4. Wait for `db-import-job` to run - it needs the above SQL adding to run
-5. Wait for the `ac-worldserver` and `ac-authserver` to run - they need the import to have completed first
-6. Shell into the `ac-worldserver` pod and use `screen -r worldserver` to access the command prompt from the AzerothCore docs
+3. Run `create_mysql.sql` in the ac-database-0 pod
+4. Wait for `db-import-job` to run - it needs the above SQL adding before it can succeed
+5. Wait for the `ac-worldserver` and `ac-authserver` to run - they need the import to have succeeded before it can see the tables/config
+6. Attach to PID 1 of the `ac-worldserver` pod to access the command prompt from the AzerothCore docs
+7. Forward the service port for the worldserver: `kubectl port-forward svc/ac-worldserver-service -n azerothcore-wotlk 8085:8085`
+8. Forward the service port for the authserver: `kubectl port-forward svc/ac-authserver-service -n azerothcore-wotlk 3724:3724`
 
 The command for running the Helm Upgrade uses 4 flags:
 - "--install" create if doesn't already exist
@@ -36,13 +38,22 @@ You need to be in the newly created `azerothcore-wotlk/deploy` directory for it 
 *I'm listing the tools and programs I needed to make it all run in K8s - so things like Docker Compose which were already present, aren't included.*
 
 1. Tilt (https://tilt.dev) - Absolute lifesaver when at day 3 I was starting to tear my hair out!
-2. OpenLens (https://github.com/MuhammedKalkan/OpenLens) - I use OpenLens everyday at work (I do Tilt as well but I'll explain why) as it makes a great deal of debugging and testing way easier
+2. FreeLens (https://github.com/freelensapp/freelens) - I use FreeLens everyday at work (I do Tilt as well but I'll explain why) as it makes a great deal of debugging and testing way easier
 3. Rancher-Desktop (https://rancherdesktop.io/) - Teeny-tiny k3s on my not so powerful machine. Super quick and handy. Again, use everyday in working life, made sense to use in personal too.
 4. ChatGPT (https://chatgpt.com) - Because debugging images I hadn't build from scratch would've taken longer than 4 days.
 
 ## changelog
 
 *At time of writing, 26/08/2024, MVP is achieved - clean up to commence at some point...maybe*
+
+*150725.01*
+modified:
+1. All existing files in the `/deploy` directory have namespace removed (added at commandline)
+2. README.md instructions for build-and-deploy
+3. `create-mysql.sql` updated to use % rather than "localhost" and included a `FLUSH PRIVILEGES;`
+
+added:
+1. ConfigMaps for `.conf` files (auth and world)
 
 *260824.01*
 
